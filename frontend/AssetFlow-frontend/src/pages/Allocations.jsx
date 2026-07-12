@@ -13,8 +13,8 @@ export default function Allocations() {
   // Maps to backend serializer fields: asset (id), employee (id), assigned_date, expected_return_date
   const [aForm, setAForm] = useState({ asset: '', employee: '', assigned_date: '', expected_return_date: '' });
   
-  // Transfer request: asset (id), from_department (id), to_department (id), reason
-  const [tForm, setTForm] = useState({ asset: '', from_department: '', to_department: '', reason: '' });
+  // Transfer request: asset (id), to_employee (user id), reason
+  const [tForm, setTForm] = useState({ asset: '', to_employee: '', reason: '' });
 
   const availableAssets = assets.filter((a) => a.status === 'AVAILABLE');
 
@@ -30,9 +30,9 @@ export default function Allocations() {
   const handleTransferSubmit = async (e) => {
     e.preventDefault();
     try {
-      await addTransfer(tForm);
+      await addTransfer({ asset: Number(tForm.asset), to_employee: Number(tForm.to_employee), reason: tForm.reason });
       setShowTransferForm(false);
-      setTForm({ asset: '', from_department: '', to_department: '', reason: '' });
+      setTForm({ asset: '', to_employee: '', reason: '' });
     } catch (err) { console.error(err); }
   };
 
@@ -112,12 +112,12 @@ export default function Allocations() {
                 {transfers.map((t) => (
                   <tr key={t.id}>
                     <td><span className="mono asset-tag">{getAssetTag(t.asset)}</span><div className="dash-asset-name">{getAssetName(t.asset)}</div></td>
-                    <td>{getDeptName(t.from_department)}</td>
-                    <td>{getDeptName(t.to_department)}</td>
+                    <td>{getEmpName(t.from_employee)}</td>
+                    <td>{getEmpName(t.to_employee)}</td>
                     <td>{t.reason}</td>
                     <td><StatusBadge status={t.status} /></td>
                     <td style={{ display: 'flex', gap: 8 }}>
-                      {t.status === 'PENDING' && (
+                      {t.status === 'REQUESTED' && (
                         <>
                           <button className="btn btn-primary btn-sm" onClick={async () => {
                             try { await updateTransfer(t.id, 'Approved'); } catch(e) { console.error(e); }
@@ -156,10 +156,7 @@ export default function Allocations() {
                 {employees.filter(e => e.is_active).map((e) => <option key={e.id} value={e.id}>{e.name || e.first_name}</option>)}
               </select>
             </div>
-            <div className="field">
-              <label>From date</label>
-              <input type="date" required value={aForm.assigned_date} onChange={(e) => setAForm({ ...aForm, assigned_date: e.target.value })} />
-            </div>
+
             <div className="field">
               <label>To date</label>
               <input type="date" required value={aForm.expected_return_date} onChange={(e) => setAForm({ ...aForm, expected_return_date: e.target.value })} />
@@ -183,17 +180,10 @@ export default function Allocations() {
               </select>
             </div>
             <div className="field">
-              <label>From department</label>
-              <select required value={tForm.from_department} onChange={(e) => setTForm({ ...tForm, from_department: e.target.value })}>
-                <option value="">Select department…</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label>To department</label>
-              <select required value={tForm.to_department} onChange={(e) => setTForm({ ...tForm, to_department: e.target.value })}>
-                <option value="">Select department…</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              <label>Transfer to (employee)</label>
+              <select required value={tForm.to_employee} onChange={(e) => setTForm({ ...tForm, to_employee: e.target.value })}>
+                <option value="">Select employee…</option>
+                {employees.filter(e => e.is_active).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
               </select>
             </div>
             <div className="field">

@@ -109,7 +109,7 @@ export default function EmployeeTab() {
                       await toggleEmployeeStatus(e.id);
                     } catch(err) { console.error(err); }
                   }}>
-                    {e.status === 'Active' ? 'Deactivate' : 'Activate'}
+                    {e.is_active ? 'Deactivate' : 'Activate'}
                   </button>
                 </td>
               </tr>

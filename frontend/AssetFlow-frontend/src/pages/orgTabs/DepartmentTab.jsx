@@ -90,7 +90,7 @@ export default function DepartmentTab() {
                       className="btn btn-ghost btn-sm"
                       onClick={() => toggleDepartmentStatus(d.id)}
                     >
-                      {d.status === 'Active' ? 'Deactivate' : 'Activate'}
+                      {d.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                     </button>
                   </div>
                 </td>

@@ -114,7 +114,7 @@ export function AppProvider({ children }) {
   };
   const toggleDepartmentStatus = async (id) => {
     const d = departments.find(x => x.id === id);
-    if (d?.status === 'Active') {
+    if (d?.status === 'ACTIVE') {
       await api.departments.deactivate(id);
     } else {
       await api.departments.activate(id);

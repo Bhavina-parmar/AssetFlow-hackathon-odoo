@@ -30,9 +30,11 @@ export default function Reports() {
           api.reports.maintenanceFreq(),
           api.reports.bookingHeatmap(),
         ]);
-        setUtilizationByDept(util || []);
-        setMaintenanceFrequency(maint || []);
-        setBookingHeatmap(heat || []);
+        // utilization returns { most_used: [...], idle: [...] }
+        setUtilizationByDept(util?.most_used || []);
+        // maintenance returns { by_asset: [...], by_category: [...] }
+        setMaintenanceFrequency(maint?.by_asset || []);
+        setBookingHeatmap(Array.isArray(heat) ? heat : []);
       } catch (err) {
         console.error(err);
       }
@@ -52,12 +54,12 @@ export default function Reports() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={utilizationByDept} barSize={24} margin={{ left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-              <XAxis dataKey="department__name" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid var(--line)' }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="allocated_count" name="Allocated" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="available_count" name="Available" fill="var(--status-available)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="allocations_count" name="Allocations" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="bookings_count" name="Bookings" fill="var(--status-available)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -70,13 +72,13 @@ export default function Reports() {
         </div>
         <div style={{ padding: '16px 24px', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={maintenanceFrequency} margin={{ left: -16 }}>
+            <BarChart data={maintenanceFrequency} margin={{ left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid var(--line)' }} />
-              <Line type="monotone" dataKey="requests" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4, fill: 'var(--accent)' }} />
-            </LineChart>
+              <Bar dataKey="maintenance_count" name="Requests" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
