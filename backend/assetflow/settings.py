@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'org',
+    'assets',
 ]
 
 MIDDLEWARE = [
@@ -152,4 +153,8 @@ REST_FRAMEWORK = {
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
 }
+
+MEDIA_URL = 'media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 
