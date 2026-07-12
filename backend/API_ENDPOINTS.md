@@ -13,7 +13,117 @@ const getHeaders = (token) => ({
 
 ---
 
-## 1. Organization Setup (`org`)
+## 1. Authentication & Signup (`users` auth)
+
+### User Login
+* **URL:** `/api/auth/login/`
+* **Method:** `POST`
+* **Auth required:** No
+```javascript
+fetch("/api/auth/login/", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    email: "employee@assetflow.com", // Supports email lookup (case-insensitive) or username
+    password: "password123"
+  })
+})
+.then(res => res.json())
+.then(data => {
+  // Returns: { token: "...", user: { id: 1, name: "John Doe", email: "...", role: "EMPLOYEE", username: "employee" } }
+  console.log(data);
+});
+```
+
+### User Signup
+* **URL:** `/api/auth/signup/`
+* **Method:** `POST`
+* **Auth required:** No
+* **Note:** Automatically provisions a unique username from the email prefix. Default role is `EMPLOYEE`.
+```javascript
+fetch("/api/auth/signup/", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    name: "John Doe",
+    email: "johndoe@assetflow.com",
+    password: "securepassword"
+  })
+})
+.then(res => res.json())
+.then(data => {
+  // Returns: { token: "...", user: { id: 1, name: "John Doe", email: "...", role: "EMPLOYEE", username: "johndoe" } }
+  console.log(data);
+});
+```
+
+---
+
+## 2. Employee Directory (`users` management)
+
+### List / Search Employees
+* **URL:** `/api/employees/?search={query}&role={role}&is_active={bool}`
+* **Method:** `GET`
+```javascript
+// Search for employees with name or email containing 'john'
+fetch("/api/employees/?search=john", {
+  method: "GET",
+  headers: getHeaders(token)
+})
+.then(res => res.json())
+.then(data => console.log(data));
+```
+
+### Create Employee Account (Admin Only)
+* **URL:** `/api/employees/`
+* **Method:** `POST`
+```javascript
+fetch("/api/employees/", {
+  method: "POST",
+  headers: getHeaders(token),
+  body: JSON.stringify({
+    username: "jane_smith",
+    email: "janesmith@assetflow.com",
+    first_name: "Jane",
+    last_name: "Smith",
+    role: "ASSET_MANAGER", // ADMIN, ASSET_MANAGER, DEPT_HEAD, EMPLOYEE
+    password: "defaultpassword123"
+  })
+});
+```
+
+### Promote Employee Role (Admin Only)
+* **URL:** `/api/employees/{id}/promote/`
+* **Method:** `POST`
+```javascript
+fetch("/api/employees/3/promote/", {
+  method: "POST",
+  headers: getHeaders(token),
+  body: JSON.stringify({
+    role: "DEPT_HEAD" // Choice of ADMIN, ASSET_MANAGER, DEPT_HEAD, EMPLOYEE
+  })
+})
+.then(res => res.json());
+```
+
+### Toggle Active Status (Admin Only)
+* **URL:** `/api/employees/{id}/toggle-status/`
+* **Method:** `POST`
+```javascript
+fetch("/api/employees/3/toggle-status/", {
+  method: "POST",
+  headers: getHeaders(token)
+})
+.then(res => res.json());
+```
+
+---
+
+## 3. Organization Setup (`org`)
 
 ### List Departments
 * **URL:** `/api/departments/`
@@ -22,9 +132,7 @@ const getHeaders = (token) => ({
 fetch("/api/departments/", {
   method: "GET",
   headers: getHeaders(token)
-})
-.then(res => res.json())
-.then(data => console.log(data));
+});
 ```
 
 ### Create Department (Admin Only)
@@ -36,12 +144,10 @@ fetch("/api/departments/", {
   headers: getHeaders(token),
   body: JSON.stringify({
     name: "Engineering",
-    head: 2, // User ID
-    parent: null // Parent Department ID
+    head: 2, // User ID of Department Head
+    parent: null // Parent Department ID (optional)
   })
-})
-.then(res => res.json())
-.then(data => console.log(data));
+});
 ```
 
 ### Activate Department (Admin Only)
@@ -51,8 +157,7 @@ fetch("/api/departments/", {
 fetch("/api/departments/1/activate/", {
   method: "POST",
   headers: getHeaders(token)
-})
-.then(res => res.json());
+});
 ```
 
 ### Deactivate Department (Admin Only)
@@ -62,8 +167,7 @@ fetch("/api/departments/1/activate/", {
 fetch("/api/departments/1/deactivate/", {
   method: "POST",
   headers: getHeaders(token)
-})
-.then(res => res.json());
+});
 ```
 
 ### List Categories
@@ -92,12 +196,11 @@ fetch("/api/categories/", {
 
 ---
 
-## 2. Assets (`assets`)
+## 4. Assets (`assets`)
 
 ### Register Asset (Asset Manager/Admin Only)
 * **URL:** `/api/assets/`
 * **Method:** `POST`
-* **Note:** Automatically generates tags (e.g. `AF-0001`).
 ```javascript
 fetch("/api/assets/", {
   method: "POST",
@@ -129,7 +232,6 @@ fetch("/api/assets/?category=1&status=AVAILABLE&location=HQ", {
 ### Get Asset History
 * **URL:** `/api/assets/{id}/history/`
 * **Method:** `GET`
-* **Description:** Returns combined list of allocations, transfers, and maintenance events for the asset.
 ```javascript
 fetch("/api/assets/1/history/", {
   method: "GET",
@@ -139,7 +241,7 @@ fetch("/api/assets/1/history/", {
 
 ---
 
-## 3. Allocations & Transfers (`allocations`)
+## 5. Allocations & Transfers (`allocations`)
 
 ### Create Allocation (Asset Manager/Dept Head Only)
 * **URL:** `/api/allocations/`
@@ -160,7 +262,6 @@ fetch("/api/allocations/", {
 .then(response => {
   if (response.status === 409) {
     return response.json().then(err => {
-      // Handles conflict (held by someone else)
       alert(`Conflict: Currently held by ${err.current_holder.name} (${err.current_holder.department})`);
     });
   }
@@ -199,7 +300,6 @@ fetch("/api/transfers/", {
 ### Approve Transfer Request (Asset Manager/Dept Head Only)
 * **URL:** `/api/transfers/{id}/approve/`
 * **Method:** `POST`
-* **Description:** Automatically closes the active holder's allocation, creates a new allocation for the recipient, and transitions the asset.
 ```javascript
 fetch("/api/transfers/1/approve/", {
   method: "POST",
@@ -219,12 +319,11 @@ fetch("/api/transfers/1/reject/", {
 
 ---
 
-## 4. Resource Bookings (`bookings`)
+## 6. Resource Bookings (`bookings`)
 
 ### Create Booking
 * **URL:** `/api/bookings/`
 * **Method:** `POST`
-* **Note:** Fails if the asset has overlapping bookings or is not bookable.
 ```javascript
 fetch("/api/bookings/", {
   method: "POST",
@@ -240,7 +339,6 @@ fetch("/api/bookings/", {
 ### Cancel Booking
 * **URL:** `/api/bookings/{id}/cancel/`
 * **Method:** `POST`
-* **Description:** Cancels booking and releases asset status back to AVAILABLE.
 ```javascript
 fetch("/api/bookings/1/cancel/", {
   method: "POST",
@@ -260,7 +358,7 @@ fetch("/api/resources/1/bookings/", {
 
 ---
 
-## 5. Maintenance Requests (`maintenance`)
+## 7. Maintenance Requests (`maintenance`)
 
 ### Raise Maintenance Request
 * **URL:** `/api/maintenance/`
@@ -280,7 +378,6 @@ fetch("/api/maintenance/", {
 ### Approve Request (Asset Manager/Admin Only)
 * **URL:** `/api/maintenance/{id}/approve/`
 * **Method:** `POST`
-* **Description:** Transitions asset status to `UNDER_MAINTENANCE`.
 ```javascript
 fetch("/api/maintenance/1/approve/", {
   method: "POST",
@@ -324,7 +421,6 @@ fetch("/api/maintenance/1/start/", {
 ### Resolve Maintenance (Technician/Admin/Manager)
 * **URL:** `/api/maintenance/{id}/resolve/`
 * **Method:** `POST`
-* **Description:** Sets request status to `RESOLVED` and returns asset status back to `AVAILABLE`.
 ```javascript
 fetch("/api/maintenance/1/resolve/", {
   method: "POST",
@@ -334,12 +430,11 @@ fetch("/api/maintenance/1/resolve/", {
 
 ---
 
-## 6. Verification & Auditing (`audits`)
+## 8. Verification & Auditing (`audits`)
 
 ### Create Audit Cycle
 * **URL:** `/api/audit-cycles/`
 * **Method:** `POST`
-* **Description:** Scope-filters active assets in a department/location and automatically populates `AuditItems`.
 ```javascript
 fetch("/api/audit-cycles/", {
   method: "POST",
@@ -380,7 +475,6 @@ fetch("/api/audit-cycles/1/discrepancies/", {
 ### Close Audit Cycle
 * **URL:** `/api/audit-cycles/{id}/close/`
 * **Method:** `POST`
-* **Description:** Locks the cycle (disables marks) and automatically transitions any assets marked `MISSING` to status `LOST`.
 ```javascript
 fetch("/api/audit-cycles/1/close/", {
   method: "POST",
@@ -390,13 +484,49 @@ fetch("/api/audit-cycles/1/close/", {
 
 ---
 
-## 7. Metrics & Analytics (`activity`)
+## 9. Metrics & Analytics (`activity` reports)
 
 ### Dashboard KPIs
 * **URL:** `/api/dashboard/kpis/`
 * **Method:** `GET`
 ```javascript
 fetch("/api/dashboard/kpis/", {
+  method: "GET",
+  headers: getHeaders(token)
+});
+```
+
+### Asset Status Breakdown Chart Data
+* **URL:** `/api/reports/asset-status-breakdown/`
+* **Method:** `GET`
+* **Description:** Returns count statistics with Tailwind HSL-friendly color hexes.
+* **Returns:** `[{ name: "Available", value: 5, color: "#22c55e" }, ...]`
+```javascript
+fetch("/api/reports/asset-status-breakdown/", {
+  method: "GET",
+  headers: getHeaders(token)
+});
+```
+
+### Booking Trend Chart Data
+* **URL:** `/api/reports/booking-trend/`
+* **Method:** `GET`
+* **Description:** Returns bookings count day-by-day for the current week.
+* **Returns:** `[{ day: "Mon", bookings: 4 }, ...]`
+```javascript
+fetch("/api/reports/booking-trend/", {
+  method: "GET",
+  headers: getHeaders(token)
+});
+```
+
+### Booking Hourly Heatmap Data
+* **URL:** `/api/reports/booking-heatmap/`
+* **Method:** `GET`
+* **Description:** Returns booking load slots by hour and weekday.
+* **Returns:** `[{ slot: "09:00", Mon: 2, Tue: 0, Wed: 3, Thu: 1, Fri: 4, Sat: 0, Sun: 0 }, ...]`
+```javascript
+fetch("/api/reports/booking-heatmap/", {
   method: "GET",
   headers: getHeaders(token)
 });
@@ -425,9 +555,20 @@ fetch("/api/reports/maintenance-frequency/", {
 ### User Notifications Feed
 * **URL:** `/api/notifications/`
 * **Method:** `GET`
-* **Note:** Personalized to return only events initiated by or targeting assets/reservations belonging to the authenticated user. Admins get all logs.
 ```javascript
 fetch("/api/notifications/", {
+  method: "GET",
+  headers: getHeaders(token)
+});
+```
+
+### Paginated & Filterable Activity Logs (Admin/Auditor view)
+* **URL:** `/api/logs/?module={type}&search={query}`
+* **Method:** `GET`
+* **Description:** Returns activity logs list. Module filter applies to target type (e.g. Asset). Search matches actor username, target type, or action string.
+```javascript
+// Fetch logs relating to assets with query 'reserve'
+fetch("/api/logs/?module=Asset&search=reserve", {
   method: "GET",
   headers: getHeaders(token)
 });
