@@ -5,41 +5,54 @@ import StatusBadge from '../components/StatusBadge';
 import { useApp } from '../context/AppContext';
 
 export default function Bookings() {
-  const { bookings, addBooking, cancelBooking, assets, currentUser } = useApp();
+  const { bookings, addBooking, cancelBooking, assets, currentUser, employees } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [conflict, setConflict] = useState('');
-  const [form, setForm] = useState({ resource: '', resourceTag: '', date: '', from: '', to: '' });
+  const [form, setForm] = useState({ resource: '', date: '', from: '', to: '' });
 
-  const bookableAssets = assets.filter((a) => ['Available', 'Allocated'].includes(a.status));
+  const bookableAssets = assets.filter((a) => ['AVAILABLE', 'ALLOCATED'].includes(a.status));
 
-  const checkConflict = (tag, date, from, to) => {
+  const getAssetName = (id) => assets.find(a => a.id === id)?.name || 'Unknown';
+  const getAssetTag = (id) => assets.find(a => a.id === id)?.tag || 'Unknown';
+  const getEmpName = (id) => {
+    const e = employees.find(x => x.id === id);
+    return e ? e.name || e.first_name : 'Unknown';
+  };
+
+  const checkConflict = (resourceId, date, from, to) => {
     return bookings.some(
-      (b) =>
-        b.resourceTag === tag &&
-        b.date === date &&
-        b.status !== 'Cancelled' &&
-        b.status !== 'Completed' &&
-        from < b.to &&
-        to > b.from
+      (b) => {
+        if (b.resource !== Number(resourceId)) return false;
+        if (b.status === 'CANCELLED' || b.status === 'COMPLETED') return false;
+        const bDate = b.start_time.split('T')[0];
+        if (bDate !== date) return false;
+        const bFrom = b.start_time.split('T')[1].slice(0, 5);
+        const bTo = b.end_time.split('T')[1].slice(0, 5);
+        return from < bTo && to > bFrom;
+      }
     );
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (checkConflict(form.resourceTag, form.date, form.from, form.to)) {
+    if (checkConflict(form.resource, form.date, form.from, form.to)) {
       setConflict('This resource is already booked for the selected time slot. Please choose a different time.');
       return;
     }
-    addBooking({ ...form, bookedBy: currentUser?.name || 'Unknown' });
-    setShowForm(false);
-    setConflict('');
-    setForm({ resource: '', resourceTag: '', date: '', from: '', to: '' });
-  };
+    
+    // Combine date and time
+    const start_time = `${form.date}T${form.from}:00Z`; // Using UTC for simplicity, or handle local time
+    const end_time = `${form.date}T${form.to}:00Z`;
 
-  const handleAssetChange = (e) => {
-    const asset = bookableAssets.find((a) => a.tag === e.target.value);
-    setForm({ ...form, resourceTag: asset?.tag || '', resource: asset?.name || '' });
-    setConflict('');
+    try {
+      await addBooking({ resource: Number(form.resource), start_time, end_time });
+      setShowForm(false);
+      setConflict('');
+      setForm({ resource: '', date: '', from: '', to: '' });
+    } catch(err) {
+      console.error(err);
+      setConflict('Failed to book. ' + (err.error || ''));
+    }
   };
 
   return (
@@ -55,23 +68,35 @@ export default function Bookings() {
             <tr><th>Resource</th><th>Booked by</th><th>Date</th><th>Slot</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            {bookings.map((b) => (
-              <tr key={b.id}>
-                <td>
-                  <span className="mono asset-tag">{b.resourceTag}</span>
-                  <div className="dash-asset-name">{b.resource}</div>
-                </td>
-                <td>{b.bookedBy}</td>
-                <td>{b.date}</td>
-                <td className="mono">{b.from} – {b.to}</td>
-                <td><StatusBadge status={b.status} /></td>
-                <td>
-                  {b.status === 'Upcoming' && (
-                    <button className="btn btn-danger btn-sm" onClick={() => cancelBooking(b.id)}>Cancel</button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {bookings.map((b) => {
+              const dt = b.start_time.split('T');
+              const date = dt[0];
+              const from = dt[1].slice(0, 5);
+              const to = b.end_time.split('T')[1].slice(0, 5);
+              
+              return (
+                <tr key={b.id}>
+                  <td>
+                    <span className="mono asset-tag">{getAssetTag(b.resource)}</span>
+                    <div className="dash-asset-name">{getAssetName(b.resource)}</div>
+                  </td>
+                  <td>{getEmpName(b.booked_by)}</td>
+                  <td>{date}</td>
+                  <td className="mono">{from} – {to}</td>
+                  <td><StatusBadge status={b.status} /></td>
+                  <td>
+                    {b.status === 'UPCOMING' && (
+                      <button className="btn btn-danger btn-sm" onClick={async () => {
+                        try { await cancelBooking(b.id); } catch(e) { console.error(e); }
+                      }}>Cancel</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+            {bookings.length === 0 && (
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px' }}>No bookings found.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -81,9 +106,12 @@ export default function Bookings() {
           <form onSubmit={handleSubmit} className="form-stack">
             <div className="field">
               <label>Resource</label>
-              <select required value={form.resourceTag} onChange={handleAssetChange}>
+              <select required value={form.resource} onChange={(e) => {
+                setForm({ ...form, resource: e.target.value });
+                setConflict('');
+              }}>
                 <option value="">Select resource…</option>
-                {bookableAssets.map((a) => <option key={a.id} value={a.tag}>{a.tag} — {a.name}</option>)}
+                {bookableAssets.map((a) => <option key={a.id} value={a.id}>{a.tag} — {a.name}</option>)}
               </select>
             </div>
             <div className="field">

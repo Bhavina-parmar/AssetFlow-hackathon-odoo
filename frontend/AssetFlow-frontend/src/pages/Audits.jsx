@@ -1,28 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import { useApp } from '../context/AppContext';
+import { api } from '../api';
 
-const ITEM_STATUSES = ['Pending', 'Verified', 'Missing'];
+const ITEM_STATUSES = ['PENDING', 'VERIFIED', 'MISSING'];
 
 export default function Audits() {
-  const { audits, addAudit, updateAuditItem, closeAudit, departments, assets } = useApp();
+  const { audits, addAudit, closeAudit, departments, assets } = useApp();
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', department: '', startDate: '' });
+  const [form, setForm] = useState({ scope_department: '', start_date: '' });
+  const [items, setItems] = useState([]);
 
   const audit = audits.find((a) => a.id === selected);
 
-  const handleCreate = (e) => {
+  useEffect(() => {
+    if (selected) {
+      api.audits.listItems(selected).then(data => setItems(data || []));
+    }
+  }, [selected]);
+
+  const handleCreate = async (e) => {
     e.preventDefault();
-    const items = assets
-      .filter((a) => a.department === form.department)
-      .map((a) => ({ id: `ai${Date.now()}${a.id}`, tag: a.tag, name: a.name, status: 'Pending' }));
-    addAudit({ ...form, items });
-    setShowForm(false);
-    setForm({ name: '', department: '', startDate: '' });
+    try {
+      await addAudit({ ...form, scope_department: Number(form.scope_department) });
+      setShowForm(false);
+      setForm({ scope_department: '', start_date: '' });
+    } catch(err) { console.error(err); }
   };
+
+  const handleUpdateItem = async (itemId, status) => {
+    try {
+      await api.audits.markItem(itemId, status);
+      const data = await api.audits.listItems(selected);
+      setItems(data || []);
+    } catch(err) { console.error(err); }
+  };
+
+  const getDeptName = (id) => departments.find(d => d.id === id)?.name || 'All';
+  const getAssetName = (id) => assets.find(a => a.id === id)?.name || 'Unknown';
+  const getAssetTag = (id) => assets.find(a => a.id === id)?.tag || 'Unknown';
 
   return (
     <AppLayout title="Audit Cycles" subtitle="Create and manage asset audit cycles by department.">
@@ -35,32 +54,23 @@ export default function Audits() {
           <div className="card">
             <table className="table">
               <thead>
-                <tr><th>Name</th><th>Department</th><th>Start date</th><th>Status</th><th>Progress</th><th></th></tr>
+                <tr><th>Department</th><th>Start date</th><th>End date</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
-                {audits.map((au) => {
-                  const verified = au.items.filter((i) => i.status === 'Verified').length;
-                  const pct = au.items.length ? Math.round((verified / au.items.length) * 100) : 0;
-                  return (
-                    <tr key={au.id}>
-                      <td>{au.name}</td>
-                      <td>{au.department}</td>
-                      <td>{au.startDate}</td>
-                      <td><StatusBadge status={au.status} /></td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ flex: 1, height: 6, background: 'var(--line)', borderRadius: 4 }}>
-                            <div style={{ width: `${pct}%`, height: '100%', background: 'var(--status-available)', borderRadius: 4 }} />
-                          </div>
-                          <span className="mono" style={{ fontSize: 11, color: 'var(--muted)' }}>{pct}%</span>
-                        </div>
-                      </td>
-                      <td>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setSelected(au.id)}>View</button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {audits.map((au) => (
+                  <tr key={au.id}>
+                    <td>{getDeptName(au.scope_department)}</td>
+                    <td>{au.start_date}</td>
+                    <td>{au.end_date || '—'}</td>
+                    <td><StatusBadge status={au.status} /></td>
+                    <td>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setSelected(au.id)}>View</button>
+                    </td>
+                  </tr>
+                ))}
+                {audits.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px' }}>No audits found.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -71,28 +81,30 @@ export default function Audits() {
             <button className="btn btn-ghost" onClick={() => setSelected(null)}>← Back to audits</button>
             <div style={{ display: 'flex', gap: 8 }}>
               <StatusBadge status={audit.status} />
-              {audit.status === 'In Progress' && (
-                <button className="btn btn-secondary" onClick={() => { closeAudit(audit.id); setSelected(null); }}>Close audit</button>
+              {audit.status === 'IN_PROGRESS' && (
+                <button className="btn btn-secondary" onClick={async () => { 
+                  try { await closeAudit(audit.id); setSelected(null); } catch(e) { console.error(e); }
+                }}>Close audit</button>
               )}
             </div>
           </div>
-          <h3 style={{ marginBottom: 16 }}>{audit.name} — {audit.department}</h3>
+          <h3 style={{ marginBottom: 16 }}>Audit — {getDeptName(audit.scope_department)}</h3>
           <div className="card">
             <table className="table">
               <thead>
-                <tr><th>Tag</th><th>Asset name</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>Tag</th><th>Asset name</th><th>Result</th><th>Actions</th></tr>
               </thead>
               <tbody>
-                {audit.items.map((item) => (
+                {items.map((item) => (
                   <tr key={item.id}>
-                    <td><span className="mono asset-tag">{item.tag}</span></td>
-                    <td>{item.name}</td>
-                    <td><StatusBadge status={item.status} /></td>
+                    <td><span className="mono asset-tag">{getAssetTag(item.asset)}</span></td>
+                    <td>{getAssetName(item.asset)}</td>
+                    <td><StatusBadge status={item.result} /></td>
                     <td>
-                      {audit.status === 'In Progress' && (
+                      {audit.status === 'IN_PROGRESS' && (
                         <div style={{ display: 'flex', gap: 6 }}>
-                          {ITEM_STATUSES.filter((s) => s !== item.status).map((s) => (
-                            <button key={s} className="btn btn-ghost btn-sm" onClick={() => updateAuditItem(audit.id, item.id, s)}>
+                          {ITEM_STATUSES.filter((s) => s !== item.result).map((s) => (
+                            <button key={s} className="btn btn-ghost btn-sm" onClick={() => handleUpdateItem(item.id, s)}>
                               {s}
                             </button>
                           ))}
@@ -101,6 +113,9 @@ export default function Audits() {
                     </td>
                   </tr>
                 ))}
+                {items.length === 0 && (
+                  <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px' }}>No items in this audit.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -111,19 +126,15 @@ export default function Audits() {
         <Modal title="New audit cycle" onClose={() => setShowForm(false)}>
           <form onSubmit={handleCreate} className="form-stack">
             <div className="field">
-              <label>Cycle name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Q3 Engineering Floor" />
-            </div>
-            <div className="field">
               <label>Department</label>
-              <select required value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>
+              <select required value={form.scope_department} onChange={(e) => setForm({ ...form, scope_department: e.target.value })}>
                 <option value="">Select…</option>
-                {departments.map((d) => <option key={d.id}>{d.name}</option>)}
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div className="field">
               <label>Start date</label>
-              <input type="date" required value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              <input type="date" required value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} />
             </div>
             <p style={{ fontSize: 12, color: 'var(--muted)', margin: 0 }}>All assets in the selected department will be added automatically.</p>
             <div className="form-actions">

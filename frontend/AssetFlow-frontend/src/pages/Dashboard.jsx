@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -6,30 +7,62 @@ import {
 import AppLayout from '../components/AppLayout';
 import KpiCard from '../components/KpiCard';
 import { useApp } from '../context/AppContext';
-import {
-  dashboardKpis,
-  overdueReturns,
-  upcomingReturns,
-  recentActivity,
-  assetStatusBreakdown,
-  bookingTrend,
-  maintenanceAlerts,
-} from '../data/mockData';
+import { api } from '../api';
 import './Dashboard.css';
 
 const MAINTENANCE_STATUS_STYLE = {
-  'Pending':     { color: 'var(--status-reserved)',    bg: 'var(--status-reserved-bg)'    },
-  'Approved':    { color: 'var(--status-allocated)',   bg: 'var(--status-allocated-bg)'   },
-  'In Progress': { color: 'var(--status-maintenance)', bg: 'var(--status-maintenance-bg)' },
+  'PENDING':     { color: 'var(--status-reserved)',    bg: 'var(--status-reserved-bg)'    },
+  'APPROVED':    { color: 'var(--status-allocated)',   bg: 'var(--status-allocated-bg)'   },
+  'IN_PROGRESS': { color: 'var(--status-maintenance)', bg: 'var(--status-maintenance-bg)' },
 };
 
 export default function Dashboard() {
   const { currentUser } = useApp();
   const navigate = useNavigate();
 
+  const [kpis, setKpis] = useState(null);
+  const [assetStatus, setAssetStatus] = useState([]);
+  const [bookingTrend, setBookingTrend] = useState([]);
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+
+  useEffect(() => {
+    async function loadDash() {
+      try {
+        const [kpiData, statusData, trendData, maints, logs] = await Promise.all([
+          api.reports.kpis(),
+          api.reports.assetStatusBreakdown(),
+          api.reports.bookingTrend(),
+          api.maintenance.list(),
+          api.logs.list()
+        ]);
+        
+        setKpis(kpiData);
+        setAssetStatus(statusData);
+        setBookingTrend(trendData);
+        
+        const activeMaint = maints.filter(m => ['PENDING', 'APPROVED', 'IN_PROGRESS'].includes(m.status));
+        setMaintenanceAlerts(activeMaint);
+        setRecentActivity(logs.slice(0, 5));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadDash();
+  }, []);
+
+  const dashboardKpis = kpis ? [
+    { key: 'k1', label: 'Total available assets', value: kpis.available_count },
+    { key: 'k2', label: 'Allocated assets', value: kpis.allocated_count },
+    { key: 'k3', label: 'Pending transfers', value: kpis.pending_transfers_count },
+    { key: 'k4', label: 'Assets in maintenance', value: kpis.maintenance_count },
+  ] : [];
+
+  const overdueReturns = kpis?.overdue_returns || [];
+
   return (
     <AppLayout
-      title={`Welcome back, ${currentUser?.name?.split(' ')[0] || ''}`}
+      title={`Welcome back, ${currentUser?.first_name || currentUser?.name?.split(' ')[0] || ''}`}
       subtitle="Here's what's happening across your organization today."
     >
       {/* KPI row */}
@@ -61,14 +94,14 @@ export default function Dashboard() {
           <div className="dash-panel-header">
             <h3>Asset status breakdown</h3>
             <span className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {assetStatusBreakdown.reduce((s, d) => s + d.value, 0)} total
+              {assetStatus.reduce((s, d) => s + d.value, 0)} total
             </span>
           </div>
           <div className="chart-wrap">
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
-                  data={assetStatusBreakdown}
+                  data={assetStatus}
                   cx="50%"
                   cy="50%"
                   innerRadius={52}
@@ -76,7 +109,7 @@ export default function Dashboard() {
                   paddingAngle={3}
                   dataKey="value"
                 >
-                  {assetStatusBreakdown.map((entry) => (
+                  {assetStatus.map((entry) => (
                     <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
@@ -87,7 +120,7 @@ export default function Dashboard() {
               </PieChart>
             </ResponsiveContainer>
             <div className="chart-legend">
-              {assetStatusBreakdown.map((d) => (
+              {assetStatus.map((d) => (
                 <span key={d.name} className="legend-item">
                   <span className="legend-dot" style={{ background: d.color }} />
                   {d.name} <span className="mono">({d.value})</span>
@@ -132,10 +165,9 @@ export default function Dashboard() {
         <table className="table">
           <thead>
             <tr>
-              <th>Asset</th>
+              <th>Asset ID</th>
               <th>Status</th>
-              <th>Assignee</th>
-              <th>Due</th>
+              <th>Issue</th>
             </tr>
           </thead>
           <tbody>
@@ -145,15 +177,13 @@ export default function Dashboard() {
                 <tr key={m.id}>
                   <td>
                     <span className="mono asset-tag">{m.asset}</span>
-                    <div className="dash-asset-name">{m.assetName}</div>
                   </td>
                   <td>
                     <span className="badge" style={{ color: s.color, background: s.bg }}>
                       {m.status}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--ink-soft)' }}>{m.assignee}</td>
-                  <td className={m.due === 'Today' ? 'dash-overdue-date' : ''}>{m.due}</td>
+                  <td style={{ color: 'var(--ink-soft)' }}>{m.issue_text}</td>
                 </tr>
               );
             })}
@@ -163,7 +193,7 @@ export default function Dashboard() {
 
       {/* Returns tables */}
       <section className="dash-grid" style={{ marginBottom: 'var(--space-5)' }}>
-        <div className="card dash-panel">
+        <div className="card dash-panel" style={{ gridColumn: 'span 2' }}>
           <div className="dash-panel-header">
             <h3>Overdue returns</h3>
             <span className="badge" style={{ color: 'var(--danger)', background: 'var(--danger-soft)' }}>
@@ -172,40 +202,16 @@ export default function Dashboard() {
           </div>
           <table className="table">
             <thead>
-              <tr><th>Asset</th><th>Held by</th><th>Was due</th></tr>
+              <tr><th>Asset ID</th><th>Held by</th><th>Was due</th></tr>
             </thead>
             <tbody>
               {overdueReturns.map((r) => (
                 <tr key={r.id}>
                   <td>
                     <span className="mono asset-tag">{r.asset}</span>
-                    <div className="dash-asset-name">{r.assetName}</div>
                   </td>
-                  <td>{r.holder}</td>
-                  <td className="dash-overdue-date">{r.dueDate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="card dash-panel">
-          <div className="dash-panel-header">
-            <h3>Upcoming returns</h3>
-          </div>
-          <table className="table">
-            <thead>
-              <tr><th>Asset</th><th>Held by</th><th>Due</th></tr>
-            </thead>
-            <tbody>
-              {upcomingReturns.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <span className="mono asset-tag">{r.asset}</span>
-                    <div className="dash-asset-name">{r.assetName}</div>
-                  </td>
-                  <td>{r.holder}</td>
-                  <td>{r.dueDate}</td>
+                  <td>{r.employee}</td>
+                  <td className="dash-overdue-date">{r.expected_return_date}</td>
                 </tr>
               ))}
             </tbody>
@@ -222,8 +228,8 @@ export default function Dashboard() {
           {recentActivity.map((a) => (
             <li key={a.id}>
               <span className="activity-dot" />
-              <span className="activity-text">{a.text}</span>
-              <span className="activity-time mono">{a.time}</span>
+              <span className="activity-text">{a.meta?.description || a.action}</span>
+              <span className="activity-time mono">{new Date(a.timestamp).toLocaleString()}</span>
             </li>
           ))}
         </ul>

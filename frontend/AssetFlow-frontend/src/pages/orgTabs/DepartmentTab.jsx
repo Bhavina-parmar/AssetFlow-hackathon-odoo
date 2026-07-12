@@ -27,16 +27,20 @@ export default function DepartmentTab() {
     setModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     const payload = { ...form, parent: form.parent || null };
-    if (editingId) {
-      updateDepartment(editingId, payload);
-    } else {
-      addDepartment(payload);
+    try {
+      if (editingId) {
+        await updateDepartment(editingId, payload);
+      } else {
+        await addDepartment(payload);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error(err);
     }
-    setModalOpen(false);
   };
 
   const parentName = (parentId) => departments.find((d) => d.id === parentId)?.name || '—';

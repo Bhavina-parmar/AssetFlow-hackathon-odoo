@@ -15,7 +15,7 @@ export default function Signup() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -28,7 +28,7 @@ export default function Signup() {
       return;
     }
 
-    const result = signup({ name: name.trim(), email: email.trim(), password, department });
+    const result = await signup({ name: name.trim(), email: email.trim(), password, department });
     if (!result.ok) {
       setError(result.error);
       return;
