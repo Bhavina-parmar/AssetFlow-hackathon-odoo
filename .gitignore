@@ -1,5 +1,32 @@
+
+# Python virtual environment
 .venv/
+
+# Environment variables
 .env
 
+# Python cache
 __pycache__/
 *.py[cod]
+
+# Django
+db.sqlite3
+*.log
+
+# IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Migrations (optional - only if you know what you're doing)
+# **/migrations/*.py
+# !**/migrations/__init__.py
+>>>>>>> 9283650 (created Allocation & Transfer App)

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'users',
     'org',
     'assets',
+    'allocations',
 ]
 
 MIDDLEWARE = [
