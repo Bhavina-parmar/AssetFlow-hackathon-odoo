@@ -41,13 +41,13 @@ export default function Dashboard() {
 
       {/* Quick actions */}
       <section className="quick-actions">
-        <button className="btn btn-primary" onClick={() => alert('Register Asset — coming soon.')}>
+        <button className="btn btn-primary" onClick={() => navigate('/assets')}>
           + Register asset
         </button>
-        <button className="btn btn-secondary" onClick={() => alert('Book Resource — coming soon.')}>
+        <button className="btn btn-secondary" onClick={() => navigate('/bookings')}>
           + Book resource
         </button>
-        <button className="btn btn-secondary" onClick={() => alert('Raise Maintenance — coming soon.')}>
+        <button className="btn btn-secondary" onClick={() => navigate('/maintenance')}>
           + Raise maintenance request
         </button>
         <button className="btn btn-ghost" onClick={() => navigate('/org-setup')}>
