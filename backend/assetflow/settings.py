@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'org',
     'assets',
     'allocations',
+    'bookings',
 ]
 
 MIDDLEWARE = [
