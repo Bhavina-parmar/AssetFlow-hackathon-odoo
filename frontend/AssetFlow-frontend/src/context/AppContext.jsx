@@ -3,6 +3,13 @@ import {
   initialDepartments,
   initialCategories,
   initialEmployees,
+  initialAssets,
+  initialAllocations,
+  initialTransfers,
+  initialBookings,
+  initialMaintenance,
+  initialAudits,
+  activityLogs as seedLogs,
 } from '../data/mockData';
 
 const AppContext = createContext(null);
@@ -26,6 +33,17 @@ export function AppProvider({ children }) {
   const [departments, setDepartments] = useState(initialDepartments);
   const [categories, setCategories] = useState(initialCategories);
   const [employees, setEmployees] = useState(initialEmployees);
+  const [assets, setAssets] = useState(initialAssets);
+  const [allocations, setAllocations] = useState(initialAllocations);
+  const [transfers, setTransfers] = useState(initialTransfers);
+  const [bookings, setBookings] = useState(initialBookings);
+  const [maintenance, setMaintenance] = useState(initialMaintenance);
+  const [audits, setAudits] = useState(initialAudits);
+  const [logs, setLogs] = useState(seedLogs);
+
+  const addLog = useCallback((user, action, target, detail, module) => {
+    setLogs((prev) => [{ id: `l${Date.now()}`, user, action, target, detail, time: new Date().toISOString().slice(0,16).replace('T',' '), module }, ...prev]);
+  }, []);
 
   // ---- Auth ----
   const login = useCallback(
@@ -103,6 +121,43 @@ export function AppProvider({ children }) {
     setCategories((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  // ---- Assets ----
+  const addAsset = useCallback((asset) => {
+    const tag = `AF-${String(Math.floor(Math.random()*900)+100).padStart(4,'0')}`;
+    setAssets((prev) => [...prev, { id: nextId('a'), tag, status: 'Available', ...asset }]);
+  }, []);
+  const updateAsset = useCallback((id, patch) => setAssets((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a)), []);
+
+  // ---- Allocations ----
+  const addAllocation = useCallback((al) => {
+    setAllocations((prev) => [...prev, { id: nextId('al'), status: 'Active', ...al }]);
+    setAssets((prev) => prev.map((a) => a.tag === al.asset ? { ...a, status: 'Allocated' } : a));
+  }, []);
+  const returnAllocation = useCallback((id) => {
+    setAllocations((prev) => prev.map((al) => al.id === id ? { ...al, status: 'Returned' } : al));
+  }, []);
+
+  // ---- Transfers ----
+  const addTransfer = useCallback((tr) => setTransfers((prev) => [...prev, { id: nextId('t'), status: 'Pending', ...tr }]), []);
+  const updateTransfer = useCallback((id, status) => setTransfers((prev) => prev.map((t) => t.id === id ? { ...t, status } : t)), []);
+
+  // ---- Bookings ----
+  const addBooking = useCallback((bk) => setBookings((prev) => [...prev, { id: nextId('b'), status: 'Upcoming', ...bk }]), []);
+  const cancelBooking = useCallback((id) => setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status: 'Cancelled' } : b)), []);
+
+  // ---- Maintenance ----
+  const addMaintenance = useCallback((mr) => setMaintenance((prev) => [...prev, { id: nextId('mr'), status: 'Pending', assignee: '', ...mr }]), []);
+  const updateMaintenance = useCallback((id, patch) => setMaintenance((prev) => prev.map((m) => m.id === id ? { ...m, ...patch } : m)), []);
+
+  // ---- Audits ----
+  const addAudit = useCallback((au) => setAudits((prev) => [...prev, { id: nextId('au'), status: 'In Progress', items: [], ...au }]), []);
+  const updateAuditItem = useCallback((auditId, itemId, status) => {
+    setAudits((prev) => prev.map((au) => au.id === auditId
+      ? { ...au, items: au.items.map((it) => it.id === itemId ? { ...it, status } : it) }
+      : au));
+  }, []);
+  const closeAudit = useCallback((id) => setAudits((prev) => prev.map((au) => au.id === id ? { ...au, status: 'Closed' } : au)), []);
+
   // ---- Employees & role promotion ----
   const updateEmployee = useCallback((id, patch) => {
     setEmployees((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -122,40 +177,30 @@ export function AppProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      currentUser,
-      login,
-      signup,
-      logout,
-      departments,
-      addDepartment,
-      updateDepartment,
-      toggleDepartmentStatus,
-      categories,
-      addCategory,
-      updateCategory,
-      deleteCategory,
-      employees,
-      updateEmployee,
-      promoteEmployee,
-      toggleEmployeeStatus,
+      currentUser, login, signup, logout,
+      departments, addDepartment, updateDepartment, toggleDepartmentStatus,
+      categories, addCategory, updateCategory, deleteCategory,
+      employees, updateEmployee, promoteEmployee, toggleEmployeeStatus,
+      assets, addAsset, updateAsset,
+      allocations, addAllocation, returnAllocation,
+      transfers, addTransfer, updateTransfer,
+      bookings, addBooking, cancelBooking,
+      maintenance, addMaintenance, updateMaintenance,
+      audits, addAudit, updateAuditItem, closeAudit,
+      logs, addLog,
     }),
     [
-      currentUser,
-      login,
-      signup,
-      logout,
-      departments,
-      addDepartment,
-      updateDepartment,
-      toggleDepartmentStatus,
-      categories,
-      addCategory,
-      updateCategory,
-      deleteCategory,
-      employees,
-      updateEmployee,
-      promoteEmployee,
-      toggleEmployeeStatus,
+      currentUser, login, signup, logout,
+      departments, addDepartment, updateDepartment, toggleDepartmentStatus,
+      categories, addCategory, updateCategory, deleteCategory,
+      employees, updateEmployee, promoteEmployee, toggleEmployeeStatus,
+      assets, addAsset, updateAsset,
+      allocations, addAllocation, returnAllocation,
+      transfers, addTransfer, updateTransfer,
+      bookings, addBooking, cancelBooking,
+      maintenance, addMaintenance, updateMaintenance,
+      audits, addAudit, updateAuditItem, closeAudit,
+      logs, addLog,
     ]
   );
 

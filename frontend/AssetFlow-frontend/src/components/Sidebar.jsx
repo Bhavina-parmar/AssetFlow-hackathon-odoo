@@ -13,18 +13,18 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { to: '/assets', label: 'Asset Registry', glyph: '▤', disabled: true },
-      { to: '/allocations', label: 'Allocation & Transfer', glyph: '⇄', disabled: true },
-      { to: '/bookings', label: 'Resource Booking', glyph: '▦', disabled: true },
-      { to: '/maintenance', label: 'Maintenance', glyph: '✎', disabled: true },
-      { to: '/audits', label: 'Audit Cycles', glyph: '✓', disabled: true },
+      { to: '/assets',      label: 'Asset Registry',       glyph: '▤' },
+      { to: '/allocations', label: 'Allocation & Transfer', glyph: '⇄' },
+      { to: '/bookings',    label: 'Resource Booking',      glyph: '▦' },
+      { to: '/maintenance', label: 'Maintenance',           glyph: '✎' },
+      { to: '/audits',      label: 'Audit Cycles',          glyph: '✓' },
     ],
   },
   {
     label: 'Insight',
     items: [
-      { to: '/reports', label: 'Reports & Analytics', glyph: '▲', disabled: true },
-      { to: '/activity', label: 'Activity & Notifications', glyph: '●', disabled: true },
+      { to: '/reports',  label: 'Reports & Analytics',      glyph: '▲' },
+      { to: '/activity', label: 'Activity & Notifications',  glyph: '●' },
     ],
   },
 ];
@@ -41,31 +41,22 @@ export default function Sidebar() {
         {NAV_SECTIONS.map((section) => (
           <div className="sidebar-section" key={section.label}>
             <div className="sidebar-section-label">{section.label}</div>
-            {section.items.map((item) =>
-              item.disabled ? (
-                <span className="sidebar-link is-disabled" key={item.to} title="Coming soon">
-                  <span className="sidebar-glyph">{item.glyph}</span>
-                  {item.label}
-                </span>
-              ) : (
-                <NavLink
-                  to={item.to}
-                  key={item.to}
-                  className={({ isActive }) =>
-                    'sidebar-link' + (isActive ? ' is-active' : '')
-                  }
-                >
-                  <span className="sidebar-glyph">{item.glyph}</span>
-                  {item.label}
-                </NavLink>
-              )
-            )}
+            {section.items.map((item) => (
+              <NavLink
+                to={item.to}
+                key={item.to}
+                className={({ isActive }) => 'sidebar-link' + (isActive ? ' is-active' : '')}
+              >
+                <span className="sidebar-glyph">{item.glyph}</span>
+                {item.label}
+              </NavLink>
+            ))}
           </div>
         ))}
       </nav>
 
       <div className="sidebar-footer">
-        <span className="mono">v0.1 — mock data</span>
+        <span className="mono">v1.0 — AssetFlow</span>
       </div>
     </aside>
   );
