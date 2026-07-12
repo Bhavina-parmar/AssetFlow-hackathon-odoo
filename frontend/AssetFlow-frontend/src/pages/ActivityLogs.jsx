@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { useApp } from '../context/AppContext';
+import { api } from '../api';
 
 const ACTION_STYLE = {
   ALLOCATE:    { color: 'var(--status-allocated)',   bg: 'var(--status-allocated-bg)'   },
@@ -14,20 +14,29 @@ const ACTION_STYLE = {
   VERIFY:      { color: 'var(--status-available)',   bg: 'var(--status-available-bg)'   },
 };
 
-const MODULES = ['All', 'Allocation', 'Booking', 'Transfer', 'Maintenance', 'Asset', 'Audit'];
+const MODULES = ['All', 'Allocation', 'Booking', 'TransferRequest', 'MaintenanceRequest', 'Asset', 'AuditCycle'];
 
 export default function ActivityLogs() {
-  const { logs } = useApp();
+  const [logs, setLogs] = useState([]);
   const [filterModule, setFilterModule] = useState('All');
   const [search, setSearch] = useState('');
 
-  const filtered = logs.filter((l) => {
-    const q = search.toLowerCase();
-    return (
-      (filterModule === 'All' || l.module === filterModule) &&
-      (!q || l.detail.toLowerCase().includes(q) || l.user.toLowerCase().includes(q) || l.target.toLowerCase().includes(q))
-    );
-  });
+  useEffect(() => {
+    let active = true;
+    async function fetchLogs() {
+      try {
+        const params = {};
+        if (filterModule !== 'All') params.module = filterModule;
+        if (search) params.search = search;
+        const data = await api.logs.list(params);
+        if (active) setLogs(data || []);
+      } catch(err) {
+        console.error(err);
+      }
+    }
+    fetchLogs();
+    return () => { active = false; };
+  }, [filterModule, search]);
 
   return (
     <AppLayout title="Activity & Notifications" subtitle="Full audit trail of all actions across the system.">
@@ -39,34 +48,33 @@ export default function ActivityLogs() {
           onChange={(e) => setSearch(e.target.value)}
         />
         <select className="filter-select" value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
-          {MODULES.map((m) => <option key={m}>{m}</option>)}
+          {MODULES.map((m) => <option key={m} value={m}>{m === 'All' ? 'All modules' : m}</option>)}
         </select>
-        <span style={{ color: 'var(--muted)', fontSize: 13 }}>{filtered.length} entries</span>
+        <span style={{ color: 'var(--muted)', fontSize: 13 }}>{logs.length} entries</span>
       </div>
 
       <div className="card">
         <table className="table">
           <thead>
-            <tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Detail</th><th>Module</th></tr>
+            <tr><th>Time</th><th>User</th><th>Action</th><th>Target type</th><th>Detail</th></tr>
           </thead>
           <tbody>
-            {filtered.map((l) => {
-              const s = ACTION_STYLE[l.action] || { color: 'var(--muted)', bg: 'var(--surface-sunken)' };
+            {logs.map((l) => {
+              const s = ACTION_STYLE[l.action.toUpperCase()] || { color: 'var(--muted)', bg: 'var(--surface-sunken)' };
               return (
                 <tr key={l.id}>
-                  <td className="mono" style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{l.time}</td>
-                  <td>{l.user}</td>
+                  <td className="mono" style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{new Date(l.timestamp).toLocaleString()}</td>
+                  <td>{l.actor?.username || 'System'}</td>
                   <td>
                     <span className="badge" style={{ color: s.color, background: s.bg }}>{l.action}</span>
                   </td>
-                  <td><span className="mono asset-tag">{l.target}</span></td>
-                  <td style={{ color: 'var(--ink-soft)' }}>{l.detail}</td>
-                  <td style={{ color: 'var(--muted)', fontSize: 12 }}>{l.module}</td>
+                  <td><span className="mono asset-tag">{l.target_type} {l.target_id}</span></td>
+                  <td style={{ color: 'var(--ink-soft)' }}>{l.meta?.description || l.action}</td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: 32 }}>No logs found.</td></tr>
+            {logs.length === 0 && (
+              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: 32 }}>No logs found.</td></tr>
             )}
           </tbody>
         </table>

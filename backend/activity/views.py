@@ -165,3 +165,131 @@ class NotificationsView(APIView):
 
         serializer = ActivityLogSerializer(logs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# New report endpoints expected by the frontend
+# ---------------------------------------------------------------------------
+
+class AssetStatusBreakdownView(APIView):
+    """GET /api/reports/asset-status-breakdown/ → [{name, value, color}]"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    STATUS_COLORS = {
+        'AVAILABLE':        '#22c55e',
+        'ALLOCATED':        '#3b82f6',
+        'RESERVED':         '#f59e0b',
+        'UNDER_MAINTENANCE':'#f97316',
+        'LOST':             '#ef4444',
+        'RETIRED':          '#8b5cf6',
+        'DISPOSED':         '#6b7280',
+    }
+    STATUS_LABELS = {
+        'AVAILABLE': 'Available',
+        'ALLOCATED': 'Allocated',
+        'RESERVED': 'Reserved',
+        'UNDER_MAINTENANCE': 'Maintenance',
+        'LOST': 'Lost',
+        'RETIRED': 'Retired',
+        'DISPOSED': 'Disposed',
+    }
+
+    def get(self, request):
+        from django.db.models import Count
+        counts = Asset.objects.values('status').annotate(total=Count('id'))
+        result = [
+            {
+                'name': self.STATUS_LABELS.get(row['status'], row['status']),
+                'value': row['total'],
+                'color': self.STATUS_COLORS.get(row['status'], '#6b7280'),
+            }
+            for row in counts if row['total'] > 0
+        ]
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class BookingTrendView(APIView):
+    """GET /api/reports/booking-trend/ → [{day, bookings}] for current week"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = datetime.date.today()
+        # Start from Monday of current week
+        monday = today - datetime.timedelta(days=today.weekday())
+        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        result = []
+        for i in range(7):
+            day_date = monday + datetime.timedelta(days=i)
+            count = Booking.objects.filter(
+                start_time__date=day_date
+            ).exclude(status=BookingStatus.CANCELLED).count()
+            result.append({'day': days[i], 'bookings': count})
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class BookingHeatmapView(APIView):
+    """
+    GET /api/reports/booking-heatmap/
+    Returns booking counts grouped by hour slot × weekday.
+    Format: [{slot: '09:00', Mon: 2, Tue: 0, ...}, ...]
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    SLOTS = [
+        '08:00', '09:00', '10:00', '11:00',
+        '12:00', '13:00', '14:00', '15:00',
+        '16:00', '17:00', '18:00',
+    ]
+    DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+    def get(self, request):
+        bookings = Booking.objects.exclude(status=BookingStatus.CANCELLED)
+        # Build a dict: {(weekday, hour): count}
+        heat = {}
+        for b in bookings:
+            # Convert to local-aware date if tz-aware
+            dt = b.start_time
+            if hasattr(dt, 'astimezone'):
+                import pytz
+                try:
+                    dt = dt.astimezone(pytz.utc)
+                except Exception:
+                    pass
+            weekday = dt.weekday()   # 0=Mon
+            hour = dt.hour
+            slot = f'{hour:02d}:00'
+            key = (weekday, slot)
+            heat[key] = heat.get(key, 0) + 1
+
+        result = []
+        for slot in self.SLOTS:
+            row = {'slot': slot}
+            for i, day in enumerate(self.DAYS):
+                row[day] = heat.get((i, slot), 0)
+            result.append(row)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class LogsListView(APIView):
+    """GET /api/logs/?module=&search= → paginated activity logs"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        logs = ActivityLog.objects.all().order_by('-timestamp')
+
+        module = request.query_params.get('module', '')
+        search = request.query_params.get('search', '')
+
+        if module:
+            logs = logs.filter(target_type__icontains=module)
+        if search:
+            logs = logs.filter(
+                Q(action__icontains=search) |
+                Q(target_type__icontains=search) |
+                Q(actor__username__icontains=search)
+            )
+
+        logs = logs[:100]
+        serializer = ActivityLogSerializer(logs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+

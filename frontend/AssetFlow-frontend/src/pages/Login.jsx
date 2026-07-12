@@ -11,10 +11,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    const result = login(email.trim(), password);
+    const result = await login(email.trim(), password);
     if (!result.ok) {
       setError(result.error);
       return;

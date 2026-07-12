@@ -5,27 +5,52 @@ import StatusBadge from '../components/StatusBadge';
 import { useApp } from '../context/AppContext';
 
 export default function Allocations() {
-  const { allocations, addAllocation, returnAllocation, transfers, addTransfer, updateTransfer, assets, employees } = useApp();
+  const { allocations, addAllocation, returnAllocation, transfers, addTransfer, updateTransfer, assets, employees, departments } = useApp();
   const [tab, setTab] = useState('allocations');
   const [showAllocForm, setShowAllocForm] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
-  const [aForm, setAForm] = useState({ asset: '', assignedTo: '', department: '', from: '', to: '' });
-  const [tForm, setTForm] = useState({ asset: '', assetName: '', from: '', to: '', requestedBy: '' });
+  
+  // Maps to backend serializer fields: asset (id), employee (id), assigned_date, expected_return_date
+  const [aForm, setAForm] = useState({ asset: '', employee: '', assigned_date: '', expected_return_date: '' });
+  
+  // Transfer request: asset (id), to_employee (user id), reason
+  const [tForm, setTForm] = useState({ asset: '', to_employee: '', reason: '' });
 
-  const availableAssets = assets.filter((a) => a.status === 'Available');
+  const availableAssets = assets.filter((a) => a.status === 'AVAILABLE');
 
-  const handleAllocSubmit = (e) => {
+  const handleAllocSubmit = async (e) => {
     e.preventDefault();
-    addAllocation(aForm);
-    setShowAllocForm(false);
-    setAForm({ asset: '', assignedTo: '', department: '', from: '', to: '' });
+    try {
+      await addAllocation(aForm);
+      setShowAllocForm(false);
+      setAForm({ asset: '', employee: '', assigned_date: '', expected_return_date: '' });
+    } catch (err) { console.error(err); }
   };
 
-  const handleTransferSubmit = (e) => {
+  const handleTransferSubmit = async (e) => {
     e.preventDefault();
-    addTransfer(tForm);
-    setShowTransferForm(false);
-    setTForm({ asset: '', assetName: '', from: '', to: '', requestedBy: '' });
+    try {
+      await addTransfer({ asset: Number(tForm.asset), to_employee: Number(tForm.to_employee), reason: tForm.reason });
+      setShowTransferForm(false);
+      setTForm({ asset: '', to_employee: '', reason: '' });
+    } catch (err) { console.error(err); }
+  };
+
+  const getAssetName = (id) => {
+    const a = assets.find(x => x.id === id);
+    return a ? a.name : 'Unknown';
+  };
+  const getAssetTag = (id) => {
+    const a = assets.find(x => x.id === id);
+    return a ? a.tag : 'Unknown';
+  };
+  const getEmpName = (id) => {
+    const e = employees.find(x => x.id === id);
+    return e ? e.name || e.first_name : 'Unknown';
+  };
+  const getDeptName = (id) => {
+    const d = departments.find(x => x.id === id);
+    return d ? d.name : 'Unknown';
   };
 
   return (
@@ -44,24 +69,28 @@ export default function Allocations() {
           <div className="card">
             <table className="table">
               <thead>
-                <tr><th>Asset</th><th>Assigned to</th><th>Department</th><th>From</th><th>To</th><th>Status</th><th></th></tr>
+                <tr><th>Asset</th><th>Assigned to</th><th>From date</th><th>To date</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {allocations.map((al) => (
                   <tr key={al.id}>
-                    <td><span className="mono asset-tag">{al.asset}</span><div className="dash-asset-name">{al.assetName}</div></td>
-                    <td>{al.assignedTo}</td>
-                    <td>{al.department}</td>
-                    <td>{al.from}</td>
-                    <td>{al.to}</td>
+                    <td><span className="mono asset-tag">{getAssetTag(al.asset)}</span><div className="dash-asset-name">{getAssetName(al.asset)}</div></td>
+                    <td>{getEmpName(al.employee)}</td>
+                    <td>{al.assigned_date}</td>
+                    <td>{al.expected_return_date}</td>
                     <td><StatusBadge status={al.status} /></td>
                     <td>
-                      {al.status === 'Active' && (
-                        <button className="btn btn-ghost btn-sm" onClick={() => returnAllocation(al.id)}>Mark returned</button>
+                      {al.status === 'ACTIVE' && (
+                        <button className="btn btn-ghost btn-sm" onClick={async () => {
+                          try { await returnAllocation(al.id); } catch(e) { console.error(e); }
+                        }}>Mark returned</button>
                       )}
                     </td>
                   </tr>
                 ))}
+                {allocations.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px' }}>No allocations found.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -77,26 +106,33 @@ export default function Allocations() {
           <div className="card">
             <table className="table">
               <thead>
-                <tr><th>Asset</th><th>From</th><th>To</th><th>Requested by</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>Asset</th><th>From</th><th>To</th><th>Reason</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody>
                 {transfers.map((t) => (
                   <tr key={t.id}>
-                    <td><span className="mono asset-tag">{t.asset}</span><div className="dash-asset-name">{t.assetName}</div></td>
-                    <td>{t.from}</td>
-                    <td>{t.to}</td>
-                    <td>{t.requestedBy}</td>
+                    <td><span className="mono asset-tag">{getAssetTag(t.asset)}</span><div className="dash-asset-name">{getAssetName(t.asset)}</div></td>
+                    <td>{getEmpName(t.from_employee)}</td>
+                    <td>{getEmpName(t.to_employee)}</td>
+                    <td>{t.reason}</td>
                     <td><StatusBadge status={t.status} /></td>
                     <td style={{ display: 'flex', gap: 8 }}>
-                      {t.status === 'Pending' && (
+                      {t.status === 'REQUESTED' && (
                         <>
-                          <button className="btn btn-primary btn-sm" onClick={() => updateTransfer(t.id, 'Approved')}>Approve</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => updateTransfer(t.id, 'Rejected')}>Reject</button>
+                          <button className="btn btn-primary btn-sm" onClick={async () => {
+                            try { await updateTransfer(t.id, 'Approved'); } catch(e) { console.error(e); }
+                          }}>Approve</button>
+                          <button className="btn btn-danger btn-sm" onClick={async () => {
+                            try { await updateTransfer(t.id, 'Rejected'); } catch(e) { console.error(e); }
+                          }}>Reject</button>
                         </>
                       )}
                     </td>
                   </tr>
                 ))}
+                {transfers.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: '32px' }}>No transfers found.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -110,23 +146,20 @@ export default function Allocations() {
               <label>Asset</label>
               <select required value={aForm.asset} onChange={(e) => setAForm({ ...aForm, asset: e.target.value })}>
                 <option value="">Select available asset…</option>
-                {availableAssets.map((a) => <option key={a.id} value={a.tag}>{a.tag} — {a.name}</option>)}
+                {availableAssets.map((a) => <option key={a.id} value={a.id}>{a.tag} — {a.name}</option>)}
               </select>
             </div>
             <div className="field">
               <label>Assign to</label>
-              <select required value={aForm.assignedTo} onChange={(e) => setAForm({ ...aForm, assignedTo: e.target.value })}>
+              <select required value={aForm.employee} onChange={(e) => setAForm({ ...aForm, employee: e.target.value })}>
                 <option value="">Select employee…</option>
-                {employees.filter(e => e.status === 'Active').map((e) => <option key={e.id}>{e.name}</option>)}
+                {employees.filter(e => e.is_active).map((e) => <option key={e.id} value={e.id}>{e.name || e.first_name}</option>)}
               </select>
             </div>
-            <div className="field">
-              <label>From date</label>
-              <input type="date" required value={aForm.from} onChange={(e) => setAForm({ ...aForm, from: e.target.value })} />
-            </div>
+
             <div className="field">
               <label>To date</label>
-              <input type="date" required value={aForm.to} onChange={(e) => setAForm({ ...aForm, to: e.target.value })} />
+              <input type="date" required value={aForm.expected_return_date} onChange={(e) => setAForm({ ...aForm, expected_return_date: e.target.value })} />
             </div>
             <div className="form-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setShowAllocForm(false)}>Cancel</button>
@@ -140,16 +173,22 @@ export default function Allocations() {
         <Modal title="Request transfer" onClose={() => setShowTransferForm(false)}>
           <form onSubmit={handleTransferSubmit} className="form-stack">
             <div className="field">
-              <label>Asset tag</label>
-              <input required value={tForm.asset} onChange={(e) => setTForm({ ...tForm, asset: e.target.value })} placeholder="e.g. AF-0231" />
+              <label>Asset</label>
+              <select required value={tForm.asset} onChange={(e) => setTForm({ ...tForm, asset: e.target.value })}>
+                <option value="">Select asset…</option>
+                {assets.map((a) => <option key={a.id} value={a.id}>{a.tag} — {a.name}</option>)}
+              </select>
             </div>
             <div className="field">
-              <label>From department</label>
-              <input required value={tForm.from} onChange={(e) => setTForm({ ...tForm, from: e.target.value })} />
+              <label>Transfer to (employee)</label>
+              <select required value={tForm.to_employee} onChange={(e) => setTForm({ ...tForm, to_employee: e.target.value })}>
+                <option value="">Select employee…</option>
+                {employees.filter(e => e.is_active).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              </select>
             </div>
             <div className="field">
-              <label>To department</label>
-              <input required value={tForm.to} onChange={(e) => setTForm({ ...tForm, to: e.target.value })} />
+              <label>Reason</label>
+              <input value={tForm.reason} onChange={(e) => setTForm({ ...tForm, reason: e.target.value })} placeholder="Why transfer?" />
             </div>
             <div className="form-actions">
               <button type="button" className="btn btn-ghost" onClick={() => setShowTransferForm(false)}>Cancel</button>

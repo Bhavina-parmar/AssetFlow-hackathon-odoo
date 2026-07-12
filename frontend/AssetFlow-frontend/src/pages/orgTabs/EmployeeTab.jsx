@@ -86,7 +86,11 @@ export default function EmployeeTab() {
                     <select
                       className="role-select"
                       value={e.role}
-                      onChange={(ev) => promoteEmployee(e.id, ev.target.value)}
+                      onChange={async (ev) => {
+                        try {
+                          await promoteEmployee(e.id, ev.target.value);
+                        } catch(err) { console.error(err); }
+                      }}
                     >
                       {ROLES.map((r) => (
                         <option key={r} value={r}>
@@ -100,8 +104,12 @@ export default function EmployeeTab() {
                   <StatusBadge status={e.status} />
                 </td>
                 <td>
-                  <button className="btn btn-ghost btn-sm" onClick={() => toggleEmployeeStatus(e.id)}>
-                    {e.status === 'Active' ? 'Deactivate' : 'Activate'}
+                  <button className="btn btn-ghost btn-sm" onClick={async () => {
+                    try {
+                      await toggleEmployeeStatus(e.id);
+                    } catch(err) { console.error(err); }
+                  }}>
+                    {e.is_active ? 'Deactivate' : 'Activate'}
                   </button>
                 </td>
               </tr>

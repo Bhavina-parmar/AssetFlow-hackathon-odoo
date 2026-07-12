@@ -38,15 +38,19 @@ export default function CategoryTab() {
     setForm((f) => ({ ...f, fields: f.fields.filter((field) => field.key !== key) }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    if (editingId) {
-      updateCategory(editingId, form);
-    } else {
-      addCategory(form);
+    try {
+      if (editingId) {
+        await updateCategory(editingId, form);
+      } else {
+        await addCategory(form);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error(err);
     }
-    setModalOpen(false);
   };
 
   return (

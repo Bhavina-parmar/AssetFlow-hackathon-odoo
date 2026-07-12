@@ -8,7 +8,7 @@ from .models import Department, Category, DepartmentStatus
 from .serializers import DepartmentSerializer, CategorySerializer
 from .utils import log_activity
 
-class DepartmentViewSet(viewsets.ModelModelViewSet if hasattr(viewsets, 'ModelModelViewSet') else viewsets.ModelViewSet):
+class DepartmentViewSet(viewsets.ModelViewSet):
     queryset = Department.objects.all()
     serializer_class = DepartmentSerializer
     filterset_fields = ['name', 'parent', 'status', 'head']

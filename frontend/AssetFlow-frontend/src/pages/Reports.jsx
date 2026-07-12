@@ -1,11 +1,12 @@
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line,
 } from 'recharts';
-import { utilizationByDept, maintenanceFrequency, bookingHeatmap } from '../data/mockData';
+import { api } from '../api';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MAX_HEAT = 8;
 
 const heatColor = (val) => {
@@ -17,6 +18,30 @@ const heatColor = (val) => {
 };
 
 export default function Reports() {
+  const [utilizationByDept, setUtilizationByDept] = useState([]);
+  const [maintenanceFrequency, setMaintenanceFrequency] = useState([]);
+  const [bookingHeatmap, setBookingHeatmap] = useState([]);
+
+  useEffect(() => {
+    async function loadReports() {
+      try {
+        const [util, maint, heat] = await Promise.all([
+          api.reports.utilization(),
+          api.reports.maintenanceFreq(),
+          api.reports.bookingHeatmap(),
+        ]);
+        // utilization returns { most_used: [...], idle: [...] }
+        setUtilizationByDept(util?.most_used || []);
+        // maintenance returns { by_asset: [...], by_category: [...] }
+        setMaintenanceFrequency(maint?.by_asset || []);
+        setBookingHeatmap(Array.isArray(heat) ? heat : []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadReports();
+  }, []);
+
   return (
     <AppLayout title="Reports & Analytics" subtitle="Utilization, maintenance trends, and booking patterns.">
 
@@ -29,12 +54,12 @@ export default function Reports() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={utilizationByDept} barSize={24} margin={{ left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-              <XAxis dataKey="dept" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid var(--line)' }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="allocated" name="Allocated" fill="var(--accent)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="available" name="Available" fill="var(--status-available)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="allocations_count" name="Allocations" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="bookings_count" name="Bookings" fill="var(--status-available)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -47,13 +72,13 @@ export default function Reports() {
         </div>
         <div style={{ padding: '16px 24px', height: 260 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={maintenanceFrequency} margin={{ left: -16 }}>
+            <BarChart data={maintenanceFrequency} margin={{ left: -16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: 'var(--muted)' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: '1px solid var(--line)' }} />
-              <Line type="monotone" dataKey="requests" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4, fill: 'var(--accent)' }} />
-            </LineChart>
+              <Bar dataKey="maintenance_count" name="Requests" fill="var(--accent)" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -81,19 +106,22 @@ export default function Reports() {
                   {DAYS.map((d) => (
                     <td key={d} style={{ textAlign: 'center', padding: 2 }}>
                       <div style={{
-                        background: heatColor(row[d]),
+                        background: heatColor(row[d] || 0),
                         borderRadius: 6,
                         padding: '10px 0',
                         fontSize: 12,
                         fontFamily: 'var(--font-mono)',
-                        color: row[d] >= 5 ? '#fff' : 'var(--ink)',
+                        color: (row[d] || 0) >= 5 ? '#fff' : 'var(--ink)',
                       }}>
-                        {row[d]}
+                        {row[d] || 0}
                       </div>
                     </td>
                   ))}
                 </tr>
               ))}
+              {bookingHeatmap.length === 0 && (
+                <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: '16px' }}>No booking data.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

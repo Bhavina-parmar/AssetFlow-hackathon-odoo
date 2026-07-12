@@ -42,8 +42,10 @@ INSTALLED_APPS = [
     
     # Third party apps
     'rest_framework',
+    'rest_framework.authtoken',
     'django_filters',
-    
+    'corsheaders',
+
     # Local apps
     'users',
     'org',
@@ -56,6 +58,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -89,22 +92,20 @@ WSGI_APPLICATION = 'assetflow.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 import os
 from pathlib import Path
-
 from dotenv import load_dotenv
 import dj_database_url
-# from pathlib import Path
-# from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / ".env")
 
 DATABASES = {
-    "default": dj_database_url.parse(
-        os.getenv("DATABASE_URL"),
+    'default': dj_database_url.parse(
+        os.getenv('DATABASE_URL', f'sqlite:///{BASE_DIR / "db.sqlite3"}'),
         conn_max_age=600,
-        ssl_require=True,
+        ssl_require=bool(os.getenv('DATABASE_URL')),
     )
 }
+
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
@@ -151,13 +152,20 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
     ],
 }
+
+# CORS — allow Vite dev server
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
+CORS_ALLOW_CREDENTIALS = True
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
