@@ -28,7 +28,8 @@
 }
 
 .dash-panel-header h3 {
-  font-size: 14.5px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .dash-panel .table {
@@ -36,7 +37,7 @@
 }
 
 .asset-tag {
-  font-size: 12px;
+  font-size: 11.5px;
   background: var(--surface-sunken);
   padding: 2px 6px;
   border-radius: 4px;
@@ -53,6 +54,34 @@
   font-weight: 600;
 }
 
+/* Charts */
+.chart-wrap {
+  padding: var(--space-4) var(--space-5);
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Activity feed */
 .activity-list {
   list-style: none;
   margin: 0;
@@ -87,17 +116,12 @@
   font-size: 11.5px;
 }
 
+/* Responsive */
 @media (max-width: 1200px) {
-  .kpi-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 800px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .dash-grid {
-    grid-template-columns: 1fr;
-  }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
 }

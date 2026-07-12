@@ -74,14 +74,20 @@ export const initialEmployees = [
   },
 ];
 
-export const dashboardKpis = {
-  assetsAvailable: 128,
-  assetsAllocated: 214,
-  maintenanceToday: 6,
-  activeBookings: 17,
-  pendingTransfers: 4,
-  upcomingReturns: 9,
-};
+export const dashboardKpis = [
+  { key: 'assetsAvailable',  label: 'Assets available',   value: 128, trend: '+4',  up: true  },
+  { key: 'assetsAllocated',  label: 'Assets allocated',   value: 214, trend: '+12', up: true  },
+  { key: 'maintenanceToday', label: 'Maintenance today',  value: 6,   trend: '+2',  up: false },
+  { key: 'activeBookings',   label: 'Active bookings',    value: 17,  trend: '+3',  up: true  },
+  { key: 'pendingTransfers', label: 'Pending transfers',  value: 4,   trend: '-1',  up: true  },
+  { key: 'upcomingReturns',  label: 'Upcoming returns',   value: 9,   trend: '+1',  up: false },
+];
+
+export const maintenanceAlerts = [
+  { id: 'm1', asset: 'AF-0114', assetName: 'Dell Latitude 5440',     status: 'In Progress', assignee: 'Tech — Ravi K.',  due: 'Today' },
+  { id: 'm2', asset: 'AF-0302', assetName: 'AC Unit — Floor 3',      status: 'Pending',     assignee: 'Unassigned',      due: 'Tomorrow' },
+  { id: 'm3', asset: 'AF-0089', assetName: 'Canon Printer MF445',    status: 'Approved',    assignee: 'Tech — Sneha P.', due: 'Jul 18' },
+];
 
 export const overdueReturns = [
   { id: 'r1', asset: 'AF-0114', assetName: 'Dell Latitude 5440', holder: 'Priya Nair', dueDate: '2026-07-05' },
@@ -92,6 +98,24 @@ export const upcomingReturns = [
   { id: 'u1', asset: 'AF-0087', assetName: 'MacBook Pro 14"', holder: 'Kabir Sen', dueDate: '2026-07-16' },
   { id: 'u2', asset: 'AF-0192', assetName: 'Toyota Innova — Fleet 3', holder: 'Facilities', dueDate: '2026-07-18' },
   { id: 'u3', asset: 'AF-0055', assetName: 'Herman Miller Aeron', holder: 'Ananya Rao', dueDate: '2026-07-20' },
+];
+
+export const assetStatusBreakdown = [
+  { name: 'Available', value: 128, color: '#1f9d55' },
+  { name: 'Allocated', value: 214, color: '#3457d5' },
+  { name: 'Maintenance', value: 6, color: '#d9622b' },
+  { name: 'Reserved', value: 11, color: '#c98a1d' },
+  { name: 'Retired', value: 9, color: '#6b7280' },
+];
+
+export const bookingTrend = [
+  { day: 'Mon', bookings: 8 },
+  { day: 'Tue', bookings: 14 },
+  { day: 'Wed', bookings: 11 },
+  { day: 'Thu', bookings: 17 },
+  { day: 'Fri', bookings: 13 },
+  { day: 'Sat', bookings: 4 },
+  { day: 'Sun', bookings: 2 },
 ];
 
 export const recentActivity = [
